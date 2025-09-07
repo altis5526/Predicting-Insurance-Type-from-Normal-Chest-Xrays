@@ -22,23 +22,23 @@ Make sure you include at least these keys in your parsed tfrecord file: "jpg_byt
 
 ### Experiment 1: Health Insurance Prediction from CXRs
 #### Training
-##### MIMIC
+**MIMIC**
 ```
 python run_exp1.py --dataset MIMIC --mode train --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
 ```
 
-##### CheXpert
+**CheXpert**
 ```
 python run_exp1.py --dataset CheXpert --mode train --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
 ```
 
 #### Testing
-##### MIMIC
+**MIMIC**
 ```
 python run_exp1.py --dataset MIMIC --mode test --val_path TEST_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
 ```
 
-##### CheXpert
+**CheXpert**
 ```
 python run_exp1.py --dataset CheXpert --mode test --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
 ```
@@ -49,23 +49,23 @@ weight_dir: The directory where you saved your weights
 
 ### Experiment 2: Localization of insurance information on Xray - Patch-based training
 #### Remove-One-Patch 
-##### Train
+**Train**
 ```
 python run_exp2.py --mode train --method remove --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
 
-##### Test
+**Test**
 ```
 python run_exp2.py --mode test --method remove --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
 
 #### Keep-One-Patch 
-##### Train
+**Train**
 ```
 python run_exp2.py --mode train --method keep --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
 
-##### Test
+**Test**
 ```
 python run_exp2.py --mode test --method keep --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
@@ -80,12 +80,12 @@ idx: Enter a number from 1-9. Each number corresponds to a specific patch in a 3
 Refer to ml_analysis.ipynb file
 
 #### DenseNet121 trained on isolated White people
-##### Train
+**Train**
 ```
 python train_insurance_fullimgsize_densenet.py --mode train --method keep --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
 
-##### Test
+**Test**
 ```
 python train_insurance_fullimgsize_densenet.py --mode test --method keep --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR --idx INDEX
 ```
