@@ -14,6 +14,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 from model import DenseNetClassification, DenseNetWithDoubleLinear
 from lion_pytorch import Lion
 from RawImageDataset import MIMIC_raw
+import argparse
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -98,23 +99,44 @@ def evaluate(model, val_loader, num_classes):
             
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("exp", help="", type=int)
+    parser.add_argument("train_path", help='', type=str)
+    parser.add_argument("val_path", help='', type=str)
+    parser.add_argument("experiment_name", help='', type=str)
+    parser.add_argument("weight_dir", help='', type=str)
+    parser.add_argument("mode", help='', type=str)
+    args = parser.parse_args()
+
     set_seed(123)
     torch.cuda.set_device(0)
-    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
+    weight_dir = args.weight_dir
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
-        
+
+    if args.exp == 1:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.exp == 3:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.mode == "train":
+        training = True
+    elif args.mode == "test"
+        training = False
+    
     epochs = 100
     batch_size = 32
     num_classes = 2
-    train_path = "Only_white_insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
-    val_path = "Only_white_insurance_dataset_8_1_1_PMMthree_val_addRaceICD.csv"
+    
     opt_lr = 4e-5
     weight_decay = 0
     img_size = 448
-    training = True
-    train_wandb_name = "Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
-    val_wandb_name = "Test_Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
+    
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

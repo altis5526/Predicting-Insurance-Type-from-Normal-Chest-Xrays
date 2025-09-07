@@ -15,6 +15,7 @@ from model import DenseNetWithDoubleLinear
 from lion_pytorch import Lion
 from RawImageDataset import MIMIC_raw
 from MedMamba.MedMamba import VSSM as medmamba
+import argparse
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -99,22 +100,41 @@ def evaluate(model, val_loader, num_classes):
     return auc, precision, recall, f1, acc, test_running_loss, test_total
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("exp", help="", type=int)
+    parser.add_argument("train_path", help='', type=str)
+    parser.add_argument("val_path", help='', type=str)
+    parser.add_argument("experiment_name", help='', type=str)
+    parser.add_argument("weight_dir", help='', type=str)
+    parser.add_argument("mode", help='', type=str)
+    args = parser.parse_args()
+
     set_seed(123)
     torch.cuda.set_device(0)
-    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
+    weight_dir = args.weight_dir
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
-        
+
+    if args.exp == 1:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.exp == 3:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.mode == "train":
+        training = True
+    elif args.mode == "test"
+        training = False
+    
     epochs = 100
     batch_size = 32
     num_classes = 2
-    train_path = "insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
-    val_path = "insurance_dataset_8_1_1_PMMthree_test_addRaceICD.csv"
     opt_lr = 4e-5
     weight_decay = 0
-    training = False
-    train_wandb_name = "BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
-    val_wandb_name = "Test_BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

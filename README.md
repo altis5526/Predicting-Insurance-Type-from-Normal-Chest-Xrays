@@ -7,10 +7,35 @@ Due to the broad use of artificial intelligence in healthcare settings, one shou
 
 ## Installation
 
-### How to use
+### Environment
 ```
 pip install requirements.txt
 ```
+### Rebuild the dataset
+Due to the privacy policies of both MIMIC and CheXpert datasets, we are not allowed to provide our parsed dataset, but we provide our train/val/test patient ids ("MIMIC_split.pickle" and "CheXpert_split.pkl") in both MIMIC and CheXpert datasets to replicate our reults.
+
+### Experiment 1: Health Insurance Prediction from CXRs
+#### Training
+##### MIMIC
+```
+python run_exp1.py --dataset MIMIC --mode train --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
+```
+train_path: the train csv dataset file location
+val_path: the val csv dataset file location
+experiment_name: name your experiment as you wish
+weight_dir: the directory where you saved your weights
+
+##### CheXpert
+```
+python run_exp1.py --dataset CheXpert --mode train --train_path TRAIN_PATH --val_path VAL_PATH --experiment_name EXPERIMENT_NAME --weight_dir WEIGHT_DIR
+```
+train_path: the train csv dataset file location
+val_path: the val csv dataset file location
+experiment_name: name your experiment as you wish
+weight_dir: the directory where you saved your weights
+
+
+
 
 
 

@@ -91,24 +91,44 @@ def evaluate(model, val_loader, num_classes):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("exp", help="", type=int)
+    parser.add_argument("train_path", help='', type=str)
+    parser.add_argument("val_path", help='', type=str)
+    parser.add_argument("experiment_name", help='', type=str)
+    parser.add_argument("weight_dir", help='', type=str)
+    parser.add_argument("mode", help='', type=str)
+    args = parser.parse_args()
+
     set_seed(123)
     torch.cuda.set_device(0)
-    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/CheXpert_BS32_PMMthree_FULLIMAGE448_swinTF_SingleLinear_Lion4e-5_20250713"
+    weight_dir = args.weight_dir
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
+
+    if args.exp == 1:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.exp == 3:
+        train_path = args.train_path
+        val_path = args.val_path
+        train_wandb_name = args.experiment_name
+
+    if args.mode == "train":
+        training = True
+    elif args.mode == "test"
+        training = False
         
     epochs = 200
     batch_size = 128
     num_classes = 2
-    train_path = "/mnt/new_usb/jupyter-altis5526/Resplit_CheXpert_train_insurance.tfrecord"
     train_index = None
-    val_path = "/mnt/new_usb/jupyter-altis5526/Resplit_CheXpert_test_insurance.tfrecord"
     val_index = None
     opt_lr = 4e-5
     weight_decay = 0
-    training = False
-    train_wandb_name = "CheXpert_BS32_PMMthree_FULLIMAGE448_swinTF_SingleLinear_Lion4e-5_20250713"
-    val_wandb_name = "Test_CheXpert_BS32_PMMthree_FULLIMAGE448_swinTF_SingleLinear_Lion4e-5_20250713"
+    
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
