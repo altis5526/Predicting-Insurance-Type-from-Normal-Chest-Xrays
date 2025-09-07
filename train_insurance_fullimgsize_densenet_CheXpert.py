@@ -80,24 +80,6 @@ def evaluate(model, val_loader, num_classes):
 
 
     return auc, precision, recall, f1, acc, test_running_loss, test_total
-
-def compute_group_avg(losses, group_idx, ngroups):
-    # compute observed counts and mean loss for each group
-    group_map = (group_idx == torch.arange(ngroups).unsqueeze(1).long().to(device)).float().to(device)
-    group_count = group_map.sum(1)
-    group_denom = group_count + (group_count==0).float() # avoid nans
-    
-    group_loss = (group_map @ losses.view(-1))/group_denom
-    return group_loss, group_count
-
-def compute_robust_loss(group_loss, group_count, group_weights, step_size):
-        adjusted_loss = group_loss
-        adjusted_loss = adjusted_loss/(adjusted_loss.sum())
-        group_weights = group_weights * torch.exp(step_size*adjusted_loss.data)
-        group_weights = group_weights/group_weights.sum()
-
-        robust_loss = group_loss @ group_weights
-        return robust_loss, group_weights
             
 
 if __name__ == "__main__":
@@ -119,9 +101,7 @@ if __name__ == "__main__":
     training = False
     train_wandb_name = "CheXpert_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250713"
     val_wandb_name = "Test_CheXpert_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250713"
-    groupDRO = False
-    DRO_step_size = 1e-5
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     encoder = DenseNetClassification(num_classes=num_classes, dropout_prob=0)
@@ -131,31 +111,13 @@ if __name__ == "__main__":
     train_loader = CheXpertLoader(train_path, train_index, batch_size, num_workers=1, shuffle=True)
     val_loader = CheXpertLoader(val_path, val_index, batch_size, num_workers=1, shuffle=False)
     
-    if groupDRO == True:
-        criterion = nn.CrossEntropyLoss(reduction="none")
-    else:
-        # criterion = nn.CrossEntropyLoss(weight=torch.Tensor([1, 1.88]).to(device))
-        criterion = nn.CrossEntropyLoss()
-#     scheduler = ExponentialLR(opt, gamma=0.9)
+    criterion = nn.CrossEntropyLoss()
     
     testing_weight_path = f"{weight_dir}/{train_wandb_name}_model_best.pt"
     if training == False:
         encoder.load_state_dict(torch.load(testing_weight_path)["model_state_dict"])
         
-    if groupDRO == True:
-        group_weights = torch.ones(1).to(device) / 2
     if training == True:
-        wandb.init(
-            project='insurance_classification',
-            name= train_wandb_name, 
-            settings=wandb.Settings(start_method="fork"))
-        config = wandb.config
-        config.batch_size = batch_size
-        config.opt_lr = opt_lr
-        config.weight_decay = weight_decay
-        config.weight_path = weight_dir
-        config.train_path = train_path
-        config.val_path = val_path
         max_auc = 0
         total = 0
         scaler = torch.cuda.amp.GradScaler()
@@ -179,10 +141,6 @@ if __name__ == "__main__":
                 with torch.autocast(device_type='cuda', dtype=torch.float16):
                     output = encoder(imgs)
                     loss = criterion(output, labels)
-                    if groupDRO == True:
-                        group_loss, group_count = compute_group_avg(loss, target_label, 2)
-                        loss, new_weights = compute_robust_loss(group_loss, group_count, group_weights, DRO_step_size)
-                        group_weights = new_weights
                 
                 scaler.scale(loss).backward()
                 scaler.step(opt)
@@ -216,15 +174,6 @@ if __name__ == "__main__":
             wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
             
     if training == False:
-        # wandb.init(
-        #     project='insurance_classification',
-        #     name= val_wandb_name, 
-        #     settings=wandb.Settings(start_method="fork"))
-        # config = wandb.config
-        # config.batch_size = batch_size
-        # config.test_weight = testing_weight_path
-        # config.train_path = train_path
-        # config.test_path = val_path
         
         auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
 

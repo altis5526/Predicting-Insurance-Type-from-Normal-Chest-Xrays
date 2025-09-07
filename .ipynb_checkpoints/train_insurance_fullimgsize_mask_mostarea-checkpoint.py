@@ -13,7 +13,7 @@ import wandb
 from torch.optim.lr_scheduler import ExponentialLR
 from model import DenseNetClassification, DenseNetWithDoubleLinear
 from lion_pytorch import Lion
-from RawImageDataset import MIMIC_raw
+from RawImageDataset import MIMIC_raw_ICD_mask_mostimage
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -96,45 +96,22 @@ def evaluate(model, val_loader, num_classes):
         
     return auc, precision, recall, f1, acc, test_running_loss, test_total
 
-def compute_group_avg(losses, group_idx, ngroups):
-    # compute observed counts and mean loss for each group
-    group_map = (group_idx == torch.arange(ngroups).unsqueeze(1).long().to(device)).float().to(device)
-    group_count = group_map.sum(1)
-    group_denom = group_count + (group_count==0).float() # avoid nans
-    
-    group_loss = (group_map @ losses.view(-1))/group_denom
-    return group_loss, group_count
-
-def compute_robust_loss(group_loss, group_count, group_weights, step_size):
-        adjusted_loss = group_loss
-        adjusted_loss = adjusted_loss/(adjusted_loss.sum())
-        group_weights = group_weights * torch.exp(step_size*adjusted_loss.data)
-        group_weights = group_weights/group_weights.sum()
-
-        robust_loss = group_loss @ group_weights
-        return robust_loss, group_weights
-            
-
 if __name__ == "__main__":
     set_seed(123)
-    torch.cuda.set_device(0)
-    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
+    weight_dir = "/data/insurance/weights/Remain_area[2_2]_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250419"
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
         
     epochs = 100
     batch_size = 32
     num_classes = 2
-    train_path = "Only_white_insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
-    val_path = "Only_white_insurance_dataset_8_1_1_PMMthree_val_addRaceICD.csv"
+    train_path = "insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
+    val_path = "insurance_dataset_8_1_1_PMMthree_test_addRaceICD.csv"
     opt_lr = 4e-5
     weight_decay = 0
-    img_size = 448
-    training = True
-    train_wandb_name = "Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
-    val_wandb_name = "Test_Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
-    groupDRO = False
-    DRO_step_size = 1e-5
+    training = False
+    train_wandb_name = "Remain_area[2_2]_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250419"
+    val_wandb_name = "Test_Remain_area[2_2]_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250419"
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -145,35 +122,19 @@ if __name__ == "__main__":
     g = torch.Generator()
     g.manual_seed(0)
     opt = Lion(encoder.parameters(), lr=opt_lr, weight_decay = weight_decay)
-    train_dataset = MIMIC_raw(train_path)
-    val_dataset = MIMIC_raw(val_path, transform=False)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=True, generator=g, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=False, generator=g)
+    train_dataset = MIMIC_raw_ICD_mask_mostimage(train_path, [300,300], 148, 148)
+    val_dataset = MIMIC_raw_ICD_mask_mostimage(val_path, [300,300], 148, 148)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=0, shuffle=True, generator=g)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=0, shuffle=False, generator=g)
     
-    if groupDRO == True:
-        criterion = nn.CrossEntropyLoss(reduction="none")
-    else:
-        criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
     
     testing_weight_path = f"{weight_dir}/{train_wandb_name}_model_aucbest.pt"
     
     if training == False:
         encoder.load_state_dict(torch.load(testing_weight_path)["model_state_dict"])
         
-    if groupDRO == True:
-        group_weights = torch.ones(1).to(device) / 2
     if training == True:
-        wandb.init(
-            project='insurance_classification',
-            name= train_wandb_name, 
-            settings=wandb.Settings(start_method="fork"))
-        config = wandb.config
-        config.batch_size = batch_size
-        config.opt_lr = opt_lr
-        config.weight_decay = weight_decay
-        config.dropout = dropout_prob
-        config.weight_path = weight_dir
-        config.image_size = img_size
         max_auc = 0
         max_acc = 0
         total = 0
@@ -200,13 +161,6 @@ if __name__ == "__main__":
                 with torch.autocast(device_type='cuda', dtype=torch.float16):
                     output = encoder(imgs)
                     loss = criterion(output, labels)
-                    if groupDRO == True:
-                        group_loss, group_count = compute_group_avg(loss, target_label, 2)
-                        loss, new_weights = compute_robust_loss(group_loss, group_count, group_weights, DRO_step_size)
-                        group_weights = new_weights
-                
-                # if count > 23000:
-                #     print(dicom_id)
                 
                 scaler.scale(loss).backward()
                 scaler.step(opt)
@@ -248,14 +202,6 @@ if __name__ == "__main__":
             wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
             
     if training == False:
-        # wandb.init(
-        #     project='insurance_classification',
-        #     name= val_wandb_name, 
-        #     settings=wandb.Settings(start_method="fork"))
-        # config = wandb.config
-        # config.batch_size = batch_size
-        # config.test_weight = testing_weight_path
-        
         auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
         
         print(f"AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total}")

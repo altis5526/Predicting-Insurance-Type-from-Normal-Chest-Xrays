@@ -11,10 +11,9 @@ import torchvision.models as models
 from torchmetrics.classification import MultilabelAveragePrecision, MulticlassAUROC, MulticlassPrecision, MulticlassRecall, MulticlassF1Score
 import wandb
 from torch.optim.lr_scheduler import ExponentialLR
-from model import DenseNetWithDoubleLinear
+from model import DenseNetClassification, DenseNetWithDoubleLinear
 from lion_pytorch import Lion
 from RawImageDataset import MIMIC_raw
-from MedMamba.MedMamba import VSSM as medmamba
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -44,17 +43,17 @@ def evaluate(model, val_loader, num_classes):
         for batch in val_loader:
             test_imgs = batch["full_img"]
             test_labels = batch["insurance"]
-            gender = batch["gender"]
             age = batch["age"]
+            gender = batch["gender"]
             race = batch["race"]
             test_imgs = test_imgs.to(device)
             test_labels = test_labels.to(device)
             test_labels = test_labels.squeeze(-1)
 
-            _, age_label = torch.max(age, 1)
-            _, race_label = torch.max(race, 1)
-            # filter = (race_label == 2)
+            # _, age_label = torch.max(age, 1)
+            # _, race_label = torch.max(race, 1)
             # filter = (age_label == 2)
+            # filter = (race_label == 2)
             # filter = (gender == 1)
             # test_imgs = test_imgs[filter.flatten()]
             # test_labels = test_labels[filter.flatten()]
@@ -65,7 +64,6 @@ def evaluate(model, val_loader, num_classes):
             test_output = model(test_imgs)
             loss = criterion(test_output, test_labels)
             loss = loss.mean()
-            
             test_running_loss += loss.item() * test_imgs.size(0)
             test_total += test_imgs.size(0)
             
@@ -97,37 +95,39 @@ def evaluate(model, val_loader, num_classes):
         
         
     return auc, precision, recall, f1, acc, test_running_loss, test_total
+            
 
 if __name__ == "__main__":
     set_seed(123)
     torch.cuda.set_device(0)
-    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
+    weight_dir = "/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
         
     epochs = 100
     batch_size = 32
     num_classes = 2
-    train_path = "insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
-    val_path = "insurance_dataset_8_1_1_PMMthree_test_addRaceICD.csv"
+    train_path = "Only_white_insurance_dataset_8_1_1_PMMthree_train_addRaceICD.csv"
+    val_path = "Only_white_insurance_dataset_8_1_1_PMMthree_val_addRaceICD.csv"
     opt_lr = 4e-5
     weight_decay = 0
-    training = False
-    train_wandb_name = "BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
-    val_wandb_name = "Test_BS32_8_1_1split_MedMamba_PMMthree_FULLIMAGE448_densenet121_TripleLinear_Lion4e-5_0819"
+    img_size = 448
+    training = True
+    train_wandb_name = "Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
+    val_wandb_name = "Test_Only_white_8_1_1split_BS32_PMMthree_FULLIMAGE448_densenet121_SingleLinear_Lion4e-5_20250530"
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    encoder = medmamba(num_classes=num_classes)
+    encoder = DenseNetClassification(num_classes=num_classes, dropout_prob=dropout_prob)
     encoder.to(device)
     
     g = torch.Generator()
     g.manual_seed(0)
     opt = Lion(encoder.parameters(), lr=opt_lr, weight_decay = weight_decay)
     train_dataset = MIMIC_raw(train_path)
-    val_dataset = MIMIC_raw(val_path)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=True, generator=g)
+    val_dataset = MIMIC_raw(val_path, transform=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=True, generator=g, drop_last=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=False, generator=g)
     
     criterion = nn.CrossEntropyLoss()
@@ -168,6 +168,7 @@ if __name__ == "__main__":
                 scaler.scale(loss).backward()
                 scaler.step(opt)
                 scaler.update()
+            
                 
                 running_loss += loss.item() * imgs.size(0)
                 count += imgs.size(0)
@@ -204,7 +205,6 @@ if __name__ == "__main__":
             wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
             
     if training == False:
-        
         auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
         
         print(f"AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total}")
