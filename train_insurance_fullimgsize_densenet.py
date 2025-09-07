@@ -100,7 +100,6 @@ def evaluate(model, val_loader, num_classes):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("exp", help="", type=int)
     parser.add_argument("train_path", help='', type=str)
     parser.add_argument("val_path", help='', type=str)
     parser.add_argument("experiment_name", help='', type=str)
@@ -114,15 +113,9 @@ if __name__ == "__main__":
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
 
-    if args.exp == 1:
-        train_path = args.train_path
-        val_path = args.val_path
-        train_wandb_name = args.experiment_name
-
-    if args.exp == 3:
-        train_path = args.train_path
-        val_path = args.val_path
-        train_wandb_name = args.experiment_name
+    train_path = args.train_path
+    val_path = args.val_path
+    train_wandb_name = args.experiment_name
 
     if args.mode == "train":
         training = True
@@ -224,14 +217,12 @@ if __name__ == "__main__":
             
             print(f"epoch {epoch} / AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total} / duration: {duration}")
             
-            wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
             
     if training == False:
         auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
         
         print(f"AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total}")
         
-        wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
                 
                 
                 
