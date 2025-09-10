@@ -42,7 +42,7 @@ class MIMIC_raw(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -108,7 +108,7 @@ class MIMIC_raw_ICD(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -183,7 +183,7 @@ class MIMIC_raw_ICD_mask_image(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -258,7 +258,7 @@ class MIMIC_raw_ICD_mask_mostimage(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
