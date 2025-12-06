@@ -9,6 +9,9 @@ Artificial intelligence is revealing what medicine never intended to encode. Dee
 ## Installation
 
 ### Environment
+Python 3.8.18
+CUDA 12.2
+torch=2.1.1
 ```
 pip install requirements.txt
 ```
