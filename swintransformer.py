@@ -682,17 +682,57 @@ class SwinTransformerV2(nn.Module):
         return flops
 
 class SwinTDoubleLinear(nn.Module):
-    def __init__(self, pretrained_path, num_classes=1000, dropout_prob=0):
+    def __init__(self, use_checkpoint=True, num_classes=1000):
         super(SwinTDoubleLinear, self).__init__()
 
-        self.swintransformer = SwinTransformerV2(img_size=192, num_classes=21841, use_checkpoint=True, drop_path_rate=0.2, embed_dim=128, depths=(2,2,18,2), num_heads=(4,8,16,32), window_size=12)
+        self.swintransformer = SwinTransformerV2(img_size=448, num_classes=2, use_checkpoint=True, drop_path_rate=0.1, embed_dim=96, depths=[2, 2, 6, 2], num_heads=[3, 6, 12, 24], window_size=7)
         # Add a new classification head
-        self.classifier = nn.Linear(1024, 512, bias=True)
+        self.classifier = nn.Linear(768, 512, bias=True)
         self.linear_probe1 = nn.Linear(512, 128, bias=True)
         self.linear_probe2 = nn.Linear(128, num_classes, bias=True)
-        self.pretrained_path = pretrained_path
-        load_weight = torch.load(pretrained_path)
-        self.swintransformer.load_state_dict(load_weight["model"])
+        self.swintransformer.head = nn.Identity()
+    
+        
+    def forward(self, x):
+        features = self.swintransformer(x)
+        features = self.classifier(features)
+        features = self.linear_probe1(features)
+        output = self.linear_probe2(features)
+        return output
+
+class SwinTDoubleLinear_addDemothen2(nn.Module):
+    def __init__(self, use_checkpoint=True, num_classes=1000, demo_size=3):
+        super(SwinTDoubleLinear_addDemothen2, self).__init__()
+
+        self.swintransformer = SwinTransformerV2(img_size=448, num_classes=2, use_checkpoint=True, drop_path_rate=0.1, embed_dim=96, depths=[2, 2, 6, 2], num_heads=[3, 6, 12, 24], window_size=7)
+        # Add a new classification head
+        self.classifier = nn.Linear(768, 512, bias=True)
+        self.linear_probe1 = nn.Linear(512, 128, bias=True)
+        self.linear_probe2 = nn.Linear(128, num_classes, bias=True)
+        self.swintransformer.head = nn.Identity()
+
+        self.linear_probe_aftercat = nn.Linear(num_classes+demo_size, num_classes)
+    
+        
+    def forward(self, x, demo):
+        features = self.swintransformer(x)
+        features = self.classifier(features)
+        features = self.linear_probe1(features)
+        features = self.linear_probe2(features)
+        features = torch.cat((features, demo), dim=-1)
+        output = self.linear_probe_aftercat(features)
+        
+        return output
+
+class SwinTDoubleLinear_CheXpert(nn.Module):
+    def __init__(self, use_checkpoint=True, num_classes=1000):
+        super(SwinTDoubleLinear_CheXpert, self).__init__()
+
+        self.swintransformer = SwinTransformerV2(img_size=320, num_classes=num_classes, use_checkpoint=True, window_size=10)
+        # Add a new classification head
+        self.classifier = nn.Linear(768, 512, bias=True)
+        self.linear_probe1 = nn.Linear(512, 128, bias=True)
+        self.linear_probe2 = nn.Linear(128, num_classes, bias=True)
         self.swintransformer.head = nn.Identity()
     
         

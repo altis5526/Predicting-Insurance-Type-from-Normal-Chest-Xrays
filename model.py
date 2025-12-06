@@ -145,29 +145,6 @@ class ResnetEncoder(nn.Module):
         return x
     
     
-# class DenseNetWithDropout(nn.Module):
-#     def __init__(self, num_classes=1000, dropout_prob=0.25):
-#         super(DenseNetWithDropout, self).__init__()
-        
-#         # Load the pre-trained DenseNet-169 model
-#         self.densenet = models.densenet121(pretrained=True)
-        
-#         # Add a new classification head
-#         self.classifier = nn.Linear(self.densenet.classifier.in_features, num_classes, bias=True)
-        
-#         # Remove the original classification head
-#         self.densenet.classifier = nn.Identity()
-        
-#         # Add dropout layers after each dense block
-#         for name, module in self.densenet.features.named_children():
-#             if 'denseblock' in name:
-#                 setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-
-#     def forward(self, x):
-#         features = self.densenet(x)
-#         features = features.view(features.size(0), -1)
-#         output = self.classifier(features)
-#         return output
 
 class DenseNetClassification(nn.Module):
     def __init__(self, num_classes=1000, dropout_prob=0.25):
@@ -193,242 +170,6 @@ class DenseNetClassification(nn.Module):
     
         return output
 
-class DenseNetClassification_addAge(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAge, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+3, num_classes, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = torch.cat((features, age), dim=-1)
-        output = self.classifier(features)
-    
-        return output
-
-class DenseNetClassification_addAge5then2(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAge5then2, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier1 = nn.Linear(self.densenet.classifier.in_features, num_classes, bias=True)
-        self.classifier2 = nn.Linear(5, 2, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = self.classifier1(features)
-        features = torch.cat((features, age), dim=-1)
-        output = self.classifier2(features)
-    
-        return output
-
-class DenseNetClassification_addSex5then2(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addSex5then2, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier1 = nn.Linear(self.densenet.classifier.in_features, num_classes, bias=True)
-        self.classifier2 = nn.Linear(4, 2, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, sex):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = self.classifier1(features)
-        features = torch.cat((features, sex), dim=-1)
-        output = self.classifier2(features)
-    
-        return output
-
-class DenseNetClassification_addSex(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addSex, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+2, num_classes, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, sex):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = torch.cat((features, sex), dim=-1)
-        output = self.classifier(features)
-    
-        return output
-
-class DenseNetClassification_addAgeRace(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAgeRace, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+6, num_classes, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age, race):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = torch.cat((features, age, race), dim=-1)
-        output = self.classifier(features)
-    
-        return output
-
-class DenseNetClassification_addAgeRace8then2(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAgeRace8then2, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier1 = nn.Linear(self.densenet.classifier.in_features, num_classes, bias=True)
-        self.classifier2 = nn.Linear(8, 2, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age, race):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = self.classifier1(features)
-        features = torch.cat((features, age, race), dim=-1)
-        output = self.classifier2(features)
-    
-        return output
-
-class DenseNetClassification_addAgeRaceSex(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAgeRaceSex, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+8, num_classes, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age, race, sex):
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        features = torch.cat((features, age, race, sex), dim=-1)
-        output = self.classifier(features)
-    
-        return output
-
-class DenseNetClassification_addICD(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addICD, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+512, num_classes, bias=True)
-        self.attention = CLAM_SB()
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, icd_embed):
-        _, icd_embed = self.attention(icd_embed)
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        icd_embed = torch.squeeze(icd_embed, dim=1)
-        features = torch.cat((features, icd_embed), dim=-1)
-        output = self.classifier(features)
-    
-        return output
-
-class DenseNetClassification_addAgeRaceICD(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetClassification_addAgeRaceICD, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+6+512, num_classes, bias=True)
-        self.attention = CLAM_SB()
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age, race, icd_embed):
-        _, icd_embed = self.attention(icd_embed)
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        icd_embed = torch.squeeze(icd_embed, dim=1)
-        features = torch.cat((features, age, race, icd_embed), dim=-1)
-        output = self.classifier(features)
-    
-        return output
     
 class DenseNetWithDoubleLinear(nn.Module):
     def __init__(self, num_classes=1000, dropout_prob=0.25):
@@ -458,17 +199,19 @@ class DenseNetWithDoubleLinear(nn.Module):
         return output
 
 
-class DenseNetWithDoubleLinear_addAge(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0.25):
-        super(DenseNetWithDoubleLinear_addAge, self).__init__()
+class DenseNetWithDoubleLinear_addDemothen2(nn.Module):
+    def __init__(self, num_classes=1000, dropout_prob=0.25, demo_size=3):
+        super(DenseNetWithDoubleLinear_addDemothen2, self).__init__()
         
         # Load the pre-trained DenseNet-121 model
         self.densenet = models.densenet121(pretrained=True)
         
         # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+6, 512, bias=True)
+        self.classifier = nn.Linear(self.densenet.classifier.in_features, 512, bias=True)
         self.linear_probe1 = nn.Linear(512, 128, bias=True)
         self.linear_probe2 = nn.Linear(128, num_classes, bias=True)
+
+        self.linear_aftercat = nn.Linear(num_classes+demo_size, num_classes)
         
         # Remove the original classification head
         self.densenet.classifier = nn.Identity()
@@ -477,63 +220,14 @@ class DenseNetWithDoubleLinear_addAge(nn.Module):
             if 'denseblock' in name:
                 setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
         
-    def forward(self, x, age, race):
+    def forward(self, x, demo):
         features = self.densenet(x)
         features = features.view(features.size(0), -1)
-        features = torch.cat((features, age, race), dim=-1)
-        
-        features = features.to(torch.float16)
         features = self.classifier(features)
         features = self.linear_probe1(features)
-        output = self.linear_probe2(features)
+        features = self.linear_probe2(features)
+        
+        features = torch.cat((features, demo), dim=-1)
+        output = self.linear_aftercat(features)
+        
         return output
-
-class DenseNetWithDoubleLinear_addICD(nn.Module):
-    def __init__(self, num_classes=1000, dropout_prob=0):
-        super(DenseNetWithDoubleLinear_addICD, self).__init__()
-        
-        # Load the pre-trained DenseNet-121 model
-        self.densenet = models.densenet121(pretrained=True)
-        self.attention = CLAM_SB()
-        
-        # Add a new classification head
-        self.classifier = nn.Linear(self.densenet.classifier.in_features+6+512, 512, bias=True)
-        self.linear_probe1 = nn.Linear(512, 128, bias=True)
-        self.linear_probe2 = nn.Linear(128, num_classes, bias=True)
-        
-        # Remove the original classification head
-        self.densenet.classifier = nn.Identity()
-        
-        for name, module in self.densenet.features.named_children():
-            if 'denseblock' in name:
-                setattr(self.densenet.features, name, nn.Sequential(module, nn.Dropout(p=dropout_prob)))
-        
-    def forward(self, x, age, race, icd_embed):
-        _, icd_embed = self.attention(icd_embed)
-        features = self.densenet(x)
-        features = features.view(features.size(0), -1)
-        icd_embed = torch.squeeze(icd_embed, dim=1)
-        features = torch.cat((features, age, race, icd_embed), dim=-1)
-        
-        features = features.to(torch.float16)
-        features = self.classifier(features)
-        features = self.linear_probe1(features)
-        output = self.linear_probe2(features)
-        return output
-
-
-class ICD_for_insurnce(nn.Module):
-    def __init__(self, num_classes=2):
-        super(ICD_for_insurnce, self).__init__()
-        self.linear = nn.Linear(512, num_classes)
-        self.attention = CLAM_SB()
-
-    def forward(self, x):
-        _, icd_embed = self.attention(x)
-        icd_embed = torch.squeeze(icd_embed, dim=1)
-        output = self.linear(icd_embed)
-
-        return output
-
-
-    

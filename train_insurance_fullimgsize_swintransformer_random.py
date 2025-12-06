@@ -12,8 +12,9 @@ from torchmetrics.classification import MultilabelAveragePrecision, MulticlassAU
 import wandb
 from torch.optim.lr_scheduler import ExponentialLR
 from lion_pytorch import Lion
-from MedMamba.MedMamba import VSSM as medmamba
-from MyLoader_new import CheXpertLoader
+from RawImageDataset import MIMIC_raw, MIMIC_raw_random_label
+from swintransformer import SwinTransformerV2, SwinTDoubleLinear
+from torch.nn.functional import normalize
 import argparse
 
 def set_seed(seed):
@@ -31,7 +32,7 @@ def seed_worker(worker_id):
     random.seed(worker_seed)
     
     
-def evaluate(model, val_loader, num_classes):
+def evaluate(model, val_loader, num_classes, subgroup):
     model.eval()
     test_running_loss = 0.0
     test_total = 0
@@ -41,16 +42,48 @@ def evaluate(model, val_loader, num_classes):
         record_target_label = torch.zeros(1, num_classes).to(device)
         record_predict_label = torch.zeros(1, num_classes).to(device)
         
-        for (test_imgs, test_labels, test_age, test_sex, test_race) in val_loader:
+        for batch in val_loader:
+            test_imgs = batch["full_img"]
+            test_labels = batch["insurance"]
+            age = batch["age"]
+            gender = batch["gender"]
+            race = batch["race"]
             test_imgs = test_imgs.to(device)
             test_labels = test_labels.to(device)
             test_labels = test_labels.squeeze(-1)
 
-            # filter = torch.bitwise_and(test_age >= 50, test_age < 65)
-            # filter = (test_sex == 1)
-            # filter = (test_race == 1)
-            # test_imgs = test_imgs[filter.flatten()]
-            # test_labels = test_labels[filter.flatten()]
+            # filter = torch.bitwise_and(age >= 50, age < 65)
+            _, age_label = torch.max(age, 1)
+            _, race_label = torch.max(race, 1)
+            _, gender_label = torch.max(gender, 1)
+
+            if subgroup == "Male":
+                filter = (gender_label == 0)
+
+            elif subgroup == "Female":
+                filter = (gender_label == 1)
+
+            elif subgroup == "Young":
+                filter = (age_label == 0)
+
+            elif subgroup == "Middle":
+                filter = (age_label == 1)
+
+            elif subgroup == "Old":
+                filter = (age_label == 2)
+
+            elif subgroup == "White":
+                filter = (race_label == 0)
+
+            elif subgroup == "Black":
+                filter = (race_label == 1)
+
+            elif subgroup == "Race_Others":
+                filter = (race_label == 2)
+
+            if subgroup != "all" and subgroup != "All":
+                test_imgs = test_imgs[filter.flatten()]
+                test_labels = test_labels[filter.flatten()]
 
             if test_imgs.size(0) == 0:
                 continue
@@ -91,53 +124,65 @@ def evaluate(model, val_loader, num_classes):
         
     return auc, precision, recall, f1, acc, test_running_loss, test_total
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("train_path", help='', type=str)
-    parser.add_argument("val_path", help='', type=str)
-    parser.add_argument("experiment_name", help='', type=str)
-    parser.add_argument("weight_dir", help='', type=str)
-    parser.add_argument("mode", help='', type=str)
+    parser.add_argument("--train_path", help='', type=str)
+    parser.add_argument("--val_path", help='', type=str)
+    parser.add_argument("--experiment_name", help='', type=str)
+    parser.add_argument("--weight_dir", help='', type=str)
+    parser.add_argument("--mode", help='', type=str)
+    parser.add_argument("--seed", help='', type=int)
+    parser.add_argument("--root_dir", help='', type=str, default="/mnt/new_usb/jupyter-altis5526/new_insurancetype_weight/")
+    parser.add_argument("--subgroup", help='', type=str, default="all")
+    
     args = parser.parse_args()
 
-    set_seed(123)
-    torch.cuda.set_device(0)
-    weight_dir = args.weight_dir
+    set_seed(args.seed)
+    torch.cuda.set_device(1)
+    weight_dir = os.path.join(args.root_dir+args.weight_dir, f'Rand{str(args.seed)}')
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
 
     train_path = args.train_path
     val_path = args.val_path
-    train_wandb_name = args.experiment_name
+    train_wandb_name = f'Rand{str(args.seed)}' + '_' + args.experiment_name
+    val_wandb_name = f'Test_Rand{str(args.seed)}' + '_' + args.experiment_name
 
     if args.mode == "train":
         training = True
-    elif args.mode == "test"
+    elif args.mode == "test":
         training = False
+
         
-    epochs = 100
+    epochs = 200
     batch_size = 32
     num_classes = 2
-    train_index = None
-    val_index = None
     
-    opt_lr = 4e-5
+    opt_lr = 1e-5
     weight_decay = 0
     
     dropout_prob = 0
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    pretrained_path = "/mnt/ssd/altis4/swinv2_base_patch4_window12_192_22k.pth"
     
-    encoder = medmamba(num_classes=num_classes)
+    encoder = SwinTDoubleLinear(use_checkpoint=True, num_classes=num_classes)
     encoder.to(device)
     
     g = torch.Generator()
     g.manual_seed(0)
     opt = Lion(encoder.parameters(), lr=opt_lr, weight_decay = weight_decay)
     
-    
-    train_loader = CheXpertLoader(train_path, train_index, batch_size, num_workers=1, shuffle=True)
-    val_loader = CheXpertLoader(val_path, val_index, batch_size, num_workers=1, shuffle=False)
+    if args.mode == "train":
+        train_dataset = MIMIC_raw_random_label(train_path, transform=True)
+        val_dataset = MIMIC_raw_random_label(val_path, transform=True)
+    elif args.mode == "test":
+        train_dataset = MIMIC_raw_random_label(train_path, transform=True)
+        val_dataset = MIMIC_raw_random_label(val_path, transform=False)
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=True, generator=g)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, worker_init_fn=seed_worker, num_workers=8, shuffle=False, generator=g)
     
     criterion = nn.CrossEntropyLoss()
     
@@ -147,10 +192,22 @@ if __name__ == "__main__":
         encoder.load_state_dict(torch.load(testing_weight_path)["model_state_dict"])
         
     if training == True:
+        wandb.init(
+            project='insurance_classification',
+            name= train_wandb_name, 
+            settings=wandb.Settings(start_method="fork"))
+        config = wandb.config
+        config.batch_size = batch_size
+        config.opt_lr = opt_lr
+        config.weight_decay = weight_decay
+        config.dropout = dropout_prob
+        config.weight_path = weight_dir
+        config.image_size = 448
         max_auc = 0
         max_acc = 0
         total = 0
         scaler = torch.cuda.amp.GradScaler()
+        stop_criteria = 0
         
         for epoch in range(epochs):
             encoder.train()
@@ -158,9 +215,12 @@ if __name__ == "__main__":
             start_time = time.time()
             count = 0
             
-            for (imgs, labels, age, sex, race) in train_loader:
+            for batch in train_loader:
                 encoder.zero_grad()
                 opt.zero_grad()
+                imgs = batch["full_img"]
+                labels = batch["insurance"]
+                # dicom_id = batch["img_id"]
                 imgs = imgs.to(device)
                 labels = labels.to(device)
                 labels = labels.squeeze(-1)
@@ -185,8 +245,9 @@ if __name__ == "__main__":
                     print(f"epoch {epoch}: {count}/{total} (%.2f %%) finished / train loss: {running_loss / count}" % (count/total*100))
                 
             total = count
-            auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
+            auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes, args.subgroup)
             # scheduler.step()
+            stop_criteria += 1
             
             if auc > max_auc:
                 max_auc = auc
@@ -194,6 +255,7 @@ if __name__ == "__main__":
                     'model_state_dict': encoder.state_dict(),
                     'optimizer_state_dict': opt.state_dict(),
                 }, f"{weight_dir}/{train_wandb_name}_model_aucbest.pt")
+                stop_criteria = 0
 
             if acc > max_acc:
                 max_acc = acc
@@ -205,14 +267,28 @@ if __name__ == "__main__":
             end_time = time.time()
             duration = end_time - start_time
             
-            print(f"epoch {epoch} / AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total} / duration: {duration}")
+            if stop_criteria >= 10:
+                break
             
+            print(f"epoch {epoch} / AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total} / duration: {duration}")
+
+            wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
             
     if training == False:
+        wandb.init(
+            project='insurance_classification',
+            name= val_wandb_name, 
+            settings=wandb.Settings(start_method="fork"))
+        config = wandb.config
+        config.batch_size = batch_size
+        config.test_weight = testing_weight_path
+        config.img_size = 448
         
-        auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes)
+        auc, precision, recall, f1, acc, test_running_loss, test_total = evaluate(encoder, val_loader, num_classes, args.subgroup)
+        print(f"{args.subgroup} analysis AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total}")
         
-        print(f"AUC: {auc} / precision: {precision} / recall: {recall} / f1: {f1} / acc: {acc} / test loss: {test_running_loss / test_total}")
+        if args.subgroup == "all":
+            wandb.log({'auc': auc, 'precision': precision, 'recall': recall, 'f1': f1, 'acc': acc, 'testing_loss': test_running_loss / test_total})
         
                 
                 

@@ -10,12 +10,12 @@ import random
 
 
 class CheXpertLoader(DataLoader):
-    def __init__(self, data_path, index_path, batch_size, num_workers, shuffle, pin_memory=False):
+    def __init__(self, data_path, index_path, batch_size, num_workers, dataset_type, pin_memory=False):
         self.data_path = data_path
         self.index_path = index_path
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.shuffle = shuffle
+        self.dataset_type = dataset_type
         self.pin_memory = pin_memory
         
         self.description = {
@@ -45,10 +45,12 @@ class CheXpertLoader(DataLoader):
             'sex': 'byte'
         }
         
-        if self.shuffle == True:
+        if self.dataset_type == "train":
             self.dataset = TFRecordDataset(self.data_path, self.index_path, self.description, shuffle_queue_size = self.batch_size, transform = self.train_decode)
-        else:
-            self.dataset = TFRecordDataset(self.data_path, self.index_path, self.description, shuffle_queue_size = self.batch_size, transform = self.val_decode)
+        elif self.dataset_type == "val":
+            self.dataset = TFRecordDataset(self.data_path, self.index_path, self.description, transform = self.train_decode)
+        elif self.dataset_type == "test":
+            self.dataset = TFRecordDataset(self.data_path, self.index_path, self.description, transform = self.val_decode)
             
         g = torch.Generator()
         g.manual_seed(0)

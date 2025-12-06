@@ -35,6 +35,8 @@ class MIMIC_raw(Dataset):
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
 
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
         self.resize = resize
         self.transform = transform
     
@@ -42,7 +44,7 @@ class MIMIC_raw(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -51,6 +53,9 @@ class MIMIC_raw(Dataset):
         full_img = torch.from_numpy(full_img.copy()).float()
         if self.transform:
             full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
 
         insurance_index = self.title.index("new_insurance_type")
         insurance_type = self.rows[idx][insurance_index]
@@ -89,11 +94,13 @@ class MIMIC_raw(Dataset):
         return output
 
 class MIMIC_raw_ICD(Dataset):
-    def __init__(self, dataset_csv):
+    def __init__(self, dataset_csv, transform=True):
         with open(dataset_csv , newline='') as csvfile:
             data = list(csv.reader(csvfile))
             self.title = data[0]
             self.rows = data[1::]
+
+        self.transform = transform
 
         self.augmentation = transforms.Compose([
             transforms.RandomHorizontalFlip(),
@@ -101,6 +108,8 @@ class MIMIC_raw_ICD(Dataset):
             # transforms.RandomResizedCrop(size=448),
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
+        
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
         # self.tokenizer = AutoTokenizer.from_pretrained("microsoft/biogpt")
         # self.gptmodel = BioGptModel.from_pretrained("microsoft/biogpt")
     
@@ -108,14 +117,19 @@ class MIMIC_raw_ICD(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
         full_img = full_img.resize((448,448))
         full_img = np.transpose(full_img, (2, 0, 1))/255.0
         full_img = torch.from_numpy(full_img.copy()).float()
-        full_img = self.augmentation(full_img)
+        
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
         
         insurance_index = self.title.index("new_insurance_type")
         insurance_type = self.rows[idx][insurance_index]
@@ -161,7 +175,7 @@ class MIMIC_raw_ICD(Dataset):
 
 
 class MIMIC_raw_ICD_mask_image(Dataset):
-    def __init__(self, dataset_csv, mask_start, mask_size_y, mask_size_x):
+    def __init__(self, dataset_csv, mask_start, mask_size_y, mask_size_x, transform=True):
         with open(dataset_csv , newline='') as csvfile:
             data = list(csv.reader(csvfile))
             self.title = data[0]
@@ -172,7 +186,11 @@ class MIMIC_raw_ICD_mask_image(Dataset):
             transforms.RandomRotation(15),
             # transforms.RandomResizedCrop(size=448),
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        ])        
+        ])       
+
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
+        self.transform = transform
 
         self.start_y = mask_start[0]
         self.start_x = mask_start[1]
@@ -183,7 +201,7 @@ class MIMIC_raw_ICD_mask_image(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -195,7 +213,11 @@ class MIMIC_raw_ICD_mask_image(Dataset):
         # cv2.imwrite("maskone_image.png", full_img[0])
         
         full_img = torch.from_numpy(full_img.copy()).float()
-        full_img = self.augmentation(full_img)
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
 
         insurance_index = self.title.index("new_insurance_type")
         insurance_type = self.rows[idx][insurance_index]
@@ -236,7 +258,7 @@ class MIMIC_raw_ICD_mask_image(Dataset):
         return output
     
 class MIMIC_raw_ICD_mask_mostimage(Dataset):
-    def __init__(self, dataset_csv, mask_start, mask_size_y, mask_size_x):
+    def __init__(self, dataset_csv, mask_start, mask_size_y, mask_size_x, transform=True):
         with open(dataset_csv , newline='') as csvfile:
             data = list(csv.reader(csvfile))
             self.title = data[0]
@@ -249,6 +271,10 @@ class MIMIC_raw_ICD_mask_mostimage(Dataset):
             transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])        
 
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
+        self.transform = transform
+
         self.start_y = mask_start[0]
         self.start_x = mask_start[1]
         self.mask_size_x = mask_size_x
@@ -258,7 +284,7 @@ class MIMIC_raw_ICD_mask_mostimage(Dataset):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        img_root_dir = "XXXXX/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
         img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
         img_dir = img_root_dir + img_dir
         full_img = Image.open(img_dir).convert('RGB')
@@ -274,7 +300,11 @@ class MIMIC_raw_ICD_mask_mostimage(Dataset):
         # cv2.imwrite("mask_image.png", full_img[0])
         
         full_img = torch.from_numpy(full_img.copy()).float()
-        full_img = self.augmentation(full_img)
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
 
         insurance_index = self.title.index("new_insurance_type")
         insurance_type = self.rows[idx][insurance_index]
@@ -313,4 +343,241 @@ class MIMIC_raw_ICD_mask_mostimage(Dataset):
         
         output = {'full_img': full_img, 'insurance': output_insurance, 'img_id': self.rows[idx][0], 'gender': gender, 'age': age, 'race': race}
         return output
+
+
+class MIMIC_raw_low_pass(Dataset):
+    def __init__(self, dataset_csv, resize=448, diameter=50, transform=True):
+        with open(dataset_csv , newline='') as csvfile:
+            data = list(csv.reader(csvfile))
+            self.title = data[0]
+            self.rows = data[1::]
+
+        self.augmentation = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            # transforms.RandomResizedCrop(size=448),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        ])
+
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
+        self.transform = transform
+
+        self.resize = resize
+        self.diameter = diameter
     
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, idx):
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
+        img_dir = img_root_dir + img_dir
+        full_img = Image.open(img_dir).convert('RGB')
+        full_img = full_img.resize((self.resize,self.resize))
+        full_img = np.array(full_img)
+        full_img = low_pass(full_img, self.diameter) / 255.0
+
+        full_img_show = (np.transpose(full_img, (1,2,0)) * 255.0).astype(np.uint8)
+        full_img_show = cv2.cvtColor(full_img_show, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(f"low_pass_image{self.diameter}.png", full_img_show)
+        
+        full_img = torch.from_numpy(full_img.copy()).float()
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
+
+        insurance_index = self.title.index("new_insurance_type")
+        insurance_type = self.rows[idx][insurance_index]
+        gender_index = self.title.index("gender")
+        gender = self.rows[idx][gender_index]
+        age_index = self.title.index("anchor_age")
+        age = float(self.rows[idx][age_index])
+        race_index = self.title.index("race")
+        race = self.rows[idx][race_index]
+        
+        if insurance_type == "Private":
+            output_insurance = torch.Tensor([0., 1.])
+        elif insurance_type == "Medicaid" or insurance_type == "Medicare":
+            output_insurance = torch.Tensor([1., 0.])
+
+        if gender == "M":
+            gender = torch.Tensor([1., 0.])
+        elif gender == "F":
+            gender = torch.Tensor([0., 1.])
+
+        if age < 40:
+            age = torch.Tensor([1., 0., 0.])
+        elif age >= 40 and age < 50:
+            age = torch.Tensor([0., 1., 0.])
+        elif age >= 50 and age < 65:
+            age = torch.Tensor([0., 0., 1.])
+
+        if race == "WHITE":
+            race = torch.Tensor([1., 0., 0.])
+        elif race == "BLACK":
+            race = torch.Tensor([0., 1., 0.])
+        else:
+            race = torch.Tensor([0., 0., 1.])
+        
+        output = {'full_img': full_img, 'insurance': output_insurance, 'img_id': self.rows[idx][0], 'gender': gender, 'age': age, 'race': race}
+        return output
+
+class MIMIC_raw_high_pass(Dataset):
+    def __init__(self, dataset_csv, resize=448, diameter=50, transform=True):
+        with open(dataset_csv , newline='') as csvfile:
+            data = list(csv.reader(csvfile))
+            self.title = data[0]
+            self.rows = data[1::]
+
+        self.augmentation = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            # transforms.RandomResizedCrop(size=448),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        ])
+
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
+        self.transform = transform
+
+        self.resize = resize
+        self.diameter = diameter
+    
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, idx):
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
+        img_dir = img_root_dir + img_dir
+        full_img = Image.open(img_dir).convert('RGB')
+        full_img = full_img.resize((self.resize,self.resize))
+        full_img = np.array(full_img)
+        full_img = high_pass(full_img, self.diameter) / 255.0
+
+        full_img_show = (np.transpose(full_img, (1,2,0)) * 255.0).astype(np.uint8)
+        full_img_show = cv2.cvtColor(full_img_show, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(f"high_pass_image{self.diameter}.png", full_img_show)
+        
+        full_img = torch.from_numpy(full_img.copy()).float()
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
+
+        insurance_index = self.title.index("new_insurance_type")
+        insurance_type = self.rows[idx][insurance_index]
+        gender_index = self.title.index("gender")
+        gender = self.rows[idx][gender_index]
+        age_index = self.title.index("anchor_age")
+        age = float(self.rows[idx][age_index])
+        race_index = self.title.index("race")
+        race = self.rows[idx][race_index]
+        
+        if insurance_type == "Private":
+            output_insurance = torch.Tensor([0., 1.])
+        elif insurance_type == "Medicaid" or insurance_type == "Medicare":
+            output_insurance = torch.Tensor([1., 0.])
+
+        if gender == "M":
+            gender = torch.Tensor([1., 0.])
+        elif gender == "F":
+            gender = torch.Tensor([0., 1.])
+
+        if age < 40:
+            age = torch.Tensor([1., 0., 0.])
+        elif age >= 40 and age < 50:
+            age = torch.Tensor([0., 1., 0.])
+        elif age >= 50 and age < 65:
+            age = torch.Tensor([0., 0., 1.])
+
+        if race == "WHITE":
+            race = torch.Tensor([1., 0., 0.])
+        elif race == "BLACK":
+            race = torch.Tensor([0., 1., 0.])
+        else:
+            race = torch.Tensor([0., 0., 1.])
+        
+        output = {'full_img': full_img, 'insurance': output_insurance, 'img_id': self.rows[idx][0], 'gender': gender, 'age': age, 'race': race}
+        return output
+
+
+class MIMIC_raw_random_label(Dataset):
+    def __init__(self, dataset_csv, resize=448, diameter=50, transform=True):
+        with open(dataset_csv , newline='') as csvfile:
+            data = list(csv.reader(csvfile))
+            self.title = data[0]
+            self.rows = data[1::]
+
+        self.labels = torch.randn(len(self.rows), 2)
+
+        self.augmentation = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(15),
+            # transforms.RandomResizedCrop(size=448),
+            transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+        ])
+
+        self.normalization = transforms.Compose([transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))])
+
+        self.transform = transform
+
+        self.resize = resize
+        self.diameter = diameter
+    
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, idx):
+        img_root_dir = "/mnt/new_usb/jupyter-altis5526/physionet.org/files/mimic-cxr-jpg/2.0.0/files/"
+        img_dir = f"p{self.rows[idx][1][:2]}/p{self.rows[idx][1]}/s{self.rows[idx][2]}/{self.rows[idx][0]}.jpg"
+        img_dir = img_root_dir + img_dir
+        full_img = Image.open(img_dir).convert('RGB')
+        full_img = full_img.resize((self.resize,self.resize))
+        full_img = np.array(full_img)
+        full_img = high_pass(full_img, self.diameter) / 255.0
+    
+        full_img = torch.from_numpy(full_img.copy()).float()
+        if self.transform:
+            full_img = self.augmentation(full_img)
+
+        else:
+            full_img = self.normalization(full_img)
+
+        gender_index = self.title.index("gender")
+        gender = self.rows[idx][gender_index]
+        age_index = self.title.index("anchor_age")
+        age = float(self.rows[idx][age_index])
+        race_index = self.title.index("race")
+        race = self.rows[idx][race_index]
+
+        
+        output_insurance = torch.Tensor([0., 0.])
+        _, random_index = torch.max(torch.unsqueeze(self.labels[idx, :], 0), dim=1)
+        output_insurance[random_index] = 1.
+
+        if gender == "M":
+            gender = torch.Tensor([1., 0.])
+        elif gender == "F":
+            gender = torch.Tensor([0., 1.])
+
+        if age < 40:
+            age = torch.Tensor([1., 0., 0.])
+        elif age >= 40 and age < 50:
+            age = torch.Tensor([0., 1., 0.])
+        elif age >= 50 and age < 65:
+            age = torch.Tensor([0., 0., 1.])
+
+        if race == "WHITE":
+            race = torch.Tensor([1., 0., 0.])
+        elif race == "BLACK":
+            race = torch.Tensor([0., 1., 0.])
+        else:
+            race = torch.Tensor([0., 0., 1.])
+        
+        output = {'full_img': full_img, 'insurance': output_insurance, 'img_id': self.rows[idx][0], 'gender': gender, 'age': age, 'race': race}
+        return output
